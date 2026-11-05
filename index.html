@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>¿Qué peli es?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Figtree:wght@400;600;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{
+  --bg:#130c15; --panel:#1f1524; --panel2:#2a1d30; --line:#3d2c44;
+  --fg:#f7efe4; --muted:#b8a6b6; --gold:#f4c152;
+  --a:#ff6b4a; --b:#2ec4b6; --ok:#38cf78; --bad:#ef4f5a;
+  --emoji:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  --tc:var(--a);
+}
+*{box-sizing:border-box}
+html{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px);background:var(--bg)}
+body{margin:0;min-height:100dvh;color:var(--fg);font-family:Figtree,system-ui,sans-serif;
+  background:radial-gradient(120% 70% at 50% -10%,#3a1630 0%,var(--bg) 60%) fixed var(--bg)}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:.7em 1em;cursor:pointer;font-weight:700;touch-action:manipulation;line-height:1.2}
+button:hover:not(:disabled){border-color:var(--gold)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button.primary{background:var(--gold);color:#1d1208;border-color:var(--gold)}
+button.danger{background:transparent;border-color:var(--bad);color:#ff9aa1}
+button.okb{background:var(--ok);border-color:var(--ok);color:#06210f}
+button.badb{background:var(--bad);border-color:var(--bad);color:#2a0508}
+input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.55em .7em;width:100%}
+.kbd{font-size:.72em;opacity:.7;margin-left:.5em;font-weight:600;border:1px solid currentColor;border-radius:4px;padding:0 .35em}
+.h{font-family:Bungee,Figtree,sans-serif;font-weight:400;letter-spacing:.02em}
+.emo{font-family:var(--emoji)}
+.label{font-size:.76rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:800}
+.small{font-size:.92rem;color:var(--muted);line-height:1.45;margin:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>button{flex:1}
+.conn{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);white-space:nowrap}
+.conn i{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.conn.ok i{background:var(--ok)} .conn.err i{background:var(--bad)}
+.warn{background:#4a1522;border:1px solid var(--bad);border-radius:10px;padding:12px 14px;font-weight:600;line-height:1.45}
+
+/* ===== Pantalla (presentación) ===== */
+.wrap{max-width:1500px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px;min-height:100dvh}
+header.top{display:flex;align-items:center;gap:14px 20px;flex-wrap:wrap}
+header.top h1{margin:0;font-size:clamp(1.5rem,2.8vw,2.3rem);color:var(--gold);text-shadow:0 0 18px rgba(244,193,82,.35)}
+.count{font-weight:600;color:var(--muted)} .count b{color:var(--fg)}
+.dots{display:flex;gap:12px;align-items:center}
+.dots .g{display:flex;gap:4px}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.dots i.done{background:var(--c);opacity:.5}
+.dots i.now{background:var(--c);box-shadow:0 0 0 3px rgba(255,255,255,.28)}
+.hdr-r{display:flex;align-items:center;gap:14px;margin-left:auto;flex-wrap:wrap}
+.game{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;flex:1}
+@media (max-width:920px){.game{grid-template-columns:1fr}}
+aside{display:flex;flex-direction:column;gap:16px}
+aside .row>button{padding:.7em .5em;white-space:nowrap}
+
+.marquee{padding:14px;border-radius:26px;
+  background:radial-gradient(circle,#ffe7a8 0 3px,rgba(255,196,90,.35) 4px,transparent 7px) 0 0/22px 22px,linear-gradient(#3a2216,#22130c);
+  animation:chase 1.4s steps(2) infinite}
+@keyframes chase{to{background-position:11px 0,0 0}}
+.screen{position:relative;border-radius:16px;overflow:hidden;min-height:min(64vh,660px);height:100%;
+  background:radial-gradient(80% 70% at 50% 40%,#25162d,#0b070c);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:76px 24px 44px;text-align:center}
+.tag{position:absolute;top:18px;padding:7px 14px;border-radius:999px;font-weight:800;font-size:1rem}
+.tag.lvl{left:18px;background:var(--lc);color:#160c12}
+.tag.stake{right:18px;border:2px solid var(--gold);color:var(--gold)}
+.emojis{display:flex;gap:.22em;flex-wrap:wrap;justify-content:center;font-size:clamp(3.4rem,8.6vw,8.6rem);line-height:1.15}
+.emojis span{display:inline-block;animation:pop .55s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes pop{from{transform:scale(.2) rotate(-14deg);opacity:0}to{transform:none;opacity:1}}
+.hintline{font-size:clamp(1.1rem,2vw,1.6rem);font-weight:600;color:var(--gold);background:rgba(244,193,82,.1);border:1px dashed rgba(244,193,82,.5);border-radius:12px;padding:8px 16px}
+.reveal{display:flex;flex-direction:column;gap:6px;align-items:center;animation:rise .6s ease both}
+.reveal .t{font-family:Bungee,sans-serif;font-size:clamp(2rem,5vw,4.4rem);color:var(--gold);text-shadow:0 0 30px rgba(244,193,82,.4);line-height:1.1}
+.reveal .s{font-size:clamp(1rem,1.8vw,1.4rem);font-weight:800}
+@keyframes rise{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;background:rgba(10,6,12,.9)}
+.overlay .big{font-size:clamp(2.4rem,6vw,5.2rem);line-height:1.05}
+.buzzov{box-shadow:inset 0 0 0 10px var(--tc)}
+.buzzov .big{color:var(--tc)}
+.clock{font-size:clamp(2rem,4vw,3.2rem);color:var(--fg)}
+.clock.out{color:var(--bad)}
+.buzzov .row{width:min(520px,100%)} .buzzov button{font-size:1.15rem;padding:.9em}
+.splash .big{color:var(--lc)} .splash .pts{font-size:1.4rem;font-weight:800}
+.final .big{color:var(--gold)}
+.fscores{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+.fscores div{display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:800}
+.fscores b{font-family:Bungee,sans-serif;font-weight:400;font-size:3rem}
+
+.team{border-left:6px solid var(--tc);padding:12px 14px;background:var(--panel2);border-radius:12px;display:flex;flex-direction:column;gap:6px;transition:box-shadow .2s,opacity .2s}
+.team .tn{font-weight:800;font-size:1.1rem}
+.team .tp{font-size:2.6rem;color:var(--tc);line-height:1}
+.team .ts{font-size:.85rem;color:var(--muted)}
+.team.locked{opacity:.55}
+.team.turn{box-shadow:0 0 0 3px var(--tc),0 0 28px color-mix(in srgb,var(--tc) 50%,transparent)}
+.team button{padding:.45em .6em;font-size:.9rem}
+
+details{background:var(--panel);border:1px solid var(--line);border-radius:16px}
+summary{cursor:pointer;padding:14px 16px;font-weight:800}
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;padding:0 16px 16px}
+.qr{background:#fff;border-radius:12px;padding:10px;width:max-content}
+.qr img,.qr canvas{display:block}
+.field{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.92rem}
+
+/* ===== Móviles ===== */
+.phone{max-width:520px;margin:0 auto;padding:14px 16px 28px;display:flex;flex-direction:column;gap:14px;min-height:100dvh}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.brand{color:var(--gold);font-size:1.25rem}
+.pill{display:inline-block;padding:5px 12px;border-radius:999px;font-weight:800;font-size:.9rem;background:var(--lc,var(--line));color:#160c12}
+.between{justify-content:space-between;align-items:center}
+.answer{font-size:clamp(1.7rem,8vw,2.4rem);color:var(--gold);line-height:1.1}
+.cemo{font-size:2.6rem;line-height:1.2}
+.stakeline{font-weight:600} .stakeline b{font-family:Bungee,sans-serif;font-weight:400;font-size:1.4rem;color:var(--gold)}
+.turnc{border-color:var(--tc);box-shadow:0 0 0 2px var(--tc)}
+.turnc .who{font-size:1.8rem;color:var(--tc)}
+.turnc button{padding:1em;font-size:1.1rem}
+.cteam{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.cteam:first-child{border-top:0}
+.cteam .n{font-weight:800;border-left:5px solid var(--tc);padding-left:8px}
+.cteam .p{font-family:Bungee,sans-serif;font-size:1.3rem;color:var(--tc);min-width:3ch;text-align:right}
+.cteam button{padding:.5em .7em}
+.lvls button{border-color:var(--lc);flex:1 1 40%}
+
+.pick{font-size:1.4rem;padding:1.1em;border:0;color:#160c12;background:var(--tc)}
+#play{display:flex;flex-direction:column;gap:16px;align-items:stretch;flex:1}
+.myteam{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:3px solid var(--tc);padding-bottom:8px}
+.myteam .n{font-size:1.4rem;color:var(--tc)} .myteam .p{font-size:1.8rem}
+.temo{font-size:clamp(2.6rem,13vw,3.6rem);text-align:center;line-height:1.2;min-height:1.2em}
+.center{text-align:center}
+.buzzer{width:min(72vw,300px);aspect-ratio:1;border-radius:50%;border:0;align-self:center;
+  background:radial-gradient(circle at 35% 28%,rgba(255,255,255,.4),transparent 45%),var(--tc);color:#160c12;
+  font-size:clamp(1.8rem,8.5vw,2.6rem);box-shadow:0 10px 0 rgba(0,0,0,.45),0 0 44px color-mix(in srgb,var(--tc) 45%,transparent);
+  transition:transform .08s,box-shadow .08s;-webkit-tap-highlight-color:transparent;user-select:none}
+.buzzer:active:not(:disabled){transform:translateY(7px);box-shadow:0 3px 0 rgba(0,0,0,.45)}
+.buzzer:disabled{filter:grayscale(.85);opacity:.4}
+.buzzer.mine,.buzzer.mine:disabled{--tc:var(--gold);filter:none;opacity:1;animation:pulse .9s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+.tstatus{text-align:center;font-weight:800;font-size:1.15rem;min-height:2.6em;line-height:1.3}
+.mini{display:flex;gap:10px}
+.mini div{flex:1;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--tc);border-radius:10px;padding:8px 10px;display:flex;justify-content:space-between;font-weight:800;gap:8px}
+.mini span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link{background:none;border:0;color:var(--muted);text-decoration:underline;font-weight:600;align-self:center;padding:.4em}
+.flash{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:24vw;z-index:20;animation:rise .3s ease both}
+.flash.good{background:var(--ok);color:#06210f} .flash.bad{background:var(--bad);color:#2a0508}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ================= PANTALLA ================= -->
+<div id="host" class="wrap" hidden>
+  <header class="top">
+    <h1 class="h">¿Qué peli es?</h1>
+    <div class="count" id="count"></div>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="hdr-r">
+      <span class="conn" id="ctrlChip"><i></i><span>Sin controlador</span></span>
+      <span class="conn" id="conn"><i></i><span>Abriendo sala…</span></span>
+      <button id="fs" type="button">Pantalla completa</button>
+    </div>
+  </header>
+
+  <div class="warn" id="fileWarn" hidden>Has abierto el archivo directamente desde el ordenador, así que los móviles no pueden conectarse. Ábrelo desde su dirección web (Netlify o GitHub Pages). Mientras tanto puedes jugar con el teclado.</div>
+
+  <div class="game">
+    <div class="marquee">
+      <div class="screen" id="screen">
+        <div class="tag lvl" id="lvlTag"></div>
+        <div class="tag stake" id="stakeTag"></div>
+        <div class="emojis emo" id="emojis" role="img"></div>
+        <div class="hintline" id="hintLine" hidden></div>
+        <div class="reveal" id="reveal" hidden><div class="t" id="revealT"></div><div class="s" id="revealS"></div></div>
+
+        <div class="overlay buzzov" id="buzz" hidden>
+          <div class="label">Ha pulsado</div>
+          <div class="big h" id="buzzWho"></div>
+          <div class="clock h" id="clock"></div>
+          <div class="row">
+            <button class="okb" id="bOk" type="button">Correcto<span class="kbd">C</span></button>
+            <button class="badb" id="bBad" type="button">Incorrecto<span class="kbd">X</span></button>
+          </div>
+        </div>
+
+        <div class="overlay splash" id="splash" hidden>
+          <div class="label" id="splashN"></div>
+          <div class="big h" id="splashName"></div>
+          <div class="pts" id="splashPts"></div>
+        </div>
+
+        <div class="overlay final" id="final" hidden>
+          <div class="label">Fin de la partida</div>
+          <div class="big h" id="finalWho"></div>
+          <div class="fscores" id="finalScores"></div>
+          <button class="primary" id="again" type="button">Jugar otra vez</button>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="card">
+        <div class="label">Marcador</div>
+        <div id="teams" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <div class="card">
+        <div class="label">Desde el portátil</div>
+        <div class="row">
+          <button id="hHint" type="button">Pista<span class="kbd">H</span></button>
+          <button id="hRev" type="button">Revelar<span class="kbd">Enter</span></button>
+        </div>
+        <div class="row">
+          <button id="hPrev" type="button">← Anterior<span class="kbd">P</span></button>
+          <button id="hNext" class="primary" type="button">Siguiente →<span class="kbd">N</span></button>
+        </div>
+        <div class="row">
+          <button id="hA" type="button">Pulsa A<span class="kbd">1</span></button>
+          <button id="hB" type="button">Pulsa B<span class="kbd">2</span></button>
+        </div>
+        <p class="small">La pista muestra el año y el tipo de peli, y deja los puntos a la mitad. Si un equipo falla, el otro puede rebotar; si fallan los dos, se revela.</p>
+      </div>
+    </aside>
+  </div>
+
+  <details id="setup" open>
+    <summary>Conectar móviles y ajustes</summary>
+    <div class="setup">
+      <div class="card">
+        <div class="label">Jugadores · los dos equipos</div>
+        <div class="qr" id="qrTeam" aria-label="Código QR para los jugadores"></div>
+        <p class="small">Cada jugador lo escanea y elige su equipo. Pueden entrar varios móviles por equipo.</p>
+        <button id="copyTeam" type="button" disabled>Copiar enlace</button>
+      </div>
+      <div class="card">
+        <div class="label">Controlador · quien presenta</div>
+        <p class="small">El controlador ve la respuesta de cada peli, así que enseña este QR solo a quien presenta.</p>
+        <div class="qr" id="qrCtrl" aria-label="Código QR para el controlador" hidden></div>
+        <div class="row">
+          <button id="showCtrl" type="button" disabled>Mostrar QR</button>
+          <button id="copyCtrl" type="button" disabled>Copiar enlace</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Equipos</div>
+        <label class="field">Nombre del equipo A<input id="nameA" maxlength="24"></label>
+        <label class="field">Nombre del equipo B<input id="nameB" maxlength="24"></label>
+        <button class="danger" id="resetBtn" type="button">Reiniciar partida</button>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- ================= CONTROLADOR ================= -->
+<div id="ctrl" class="phone" hidden>
+  <header class="ph">
+    <div class="h brand">Controlador</div>
+    <span class="conn" id="cConn"><i></i><span>Conectando…</span></span>
+  </header>
+
+  <div class="card">
+    <div class="row between"><span class="pill" id="cLvl">—</span><span class="small" id="cCount"></span></div>
+    <div class="label">Respuesta</div>
+    <div class="answer h" id="cTitle">—</div>
+    <div class="cemo emo" id="cEmo"></div>
+    <p class="small" id="cHint"></p>
+    <div class="stakeline"><b id="cStake">0</b> puntos en juego</div>
+  </div>
+
+  <div class="card turnc" id="cTurn" hidden>
+    <div class="label">Ha pulsado</div>
+    <div class="who h" id="cWho"></div>
+    <div class="small" id="cClock"></div>
+    <div class="row">
+      <button class="okb" data-cmd="correct" type="button">✓ Correcto</button>
+      <button class="badb" data-cmd="wrong" type="button">✗ Incorrecto</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button data-cmd="hint" id="cHintBtn" type="button">💡 Pista (½ puntos)</button>
+      <button data-cmd="reveal" id="cRevBtn" type="button">Revelar</button>
+    </div>
+    <div class="row">
+      <button data-cmd="prev" id="cPrev" type="button">← Anterior</button>
+      <button data-cmd="next" id="cNext" class="primary" type="button">Siguiente →</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Marcador</div>
+    <div id="cTeams"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Si un equipo no tiene móvil</div>
+    <div class="row">
+      <button data-cmd="buzz" data-arg="0" id="cbA" type="button">Pulsa A</button>
+      <button data-cmd="buzz" data-arg="1" id="cbB" type="button">Pulsa B</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Ir a un nivel</div>
+    <div class="row lvls" id="cLevels"></div>
+    <button class="danger" id="cReset" type="button">Reiniciar partida</button>
+  </div>
+</div>
+
+<!-- ================= EQUIPO ================= -->
+<div id="team" class="phone" hidden>
+  <header class="ph">
+    <div class="h brand">¿Qué peli es?</div>
+    <span class="conn" id="tConn"><i></i><span>Conectando…</span></span>
+  </header>
+
+  <div class="card" id="choose" hidden>
+    <div class="label">Elige tu equipo</div>
+    <button class="pick h" data-team="0" id="pickA" type="button" style="--tc:var(--a)">Equipo A</button>
+    <button class="pick h" data-team="1" id="pickB" type="button" style="--tc:var(--b)">Equipo B</button>
+  </div>
+
+  <div id="play" hidden>
+    <div class="myteam"><span class="n h" id="tName"></span><span class="p h" id="tPts"></span></div>
+    <div class="temo emo" id="tEmo"></div>
+    <p class="small center" id="tHint"></p>
+    <button class="buzzer h" id="buzzer" type="button" disabled>¡Lo sé!</button>
+    <div class="tstatus" id="tStatus">Conectando con la pantalla…</div>
+    <div class="mini" id="tMini"></div>
+    <button class="link" id="switch" type="button">Cambiar de equipo</button>
+  </div>
+
+  <div class="flash h" id="flash" hidden></div>
+</div>
+
+<script>
+/* ================= DATOS DEL JUEGO ================= */
+const LEVELS = [
+  { name: "Fácil",   pts: 100, col: "#38cf78" },
+  { name: "Media",   pts: 200, col: "#f4c152" },
+  { name: "Difícil", pts: 300, col: "#ff8a3d" },
+  { name: "Experto", pts: 500, col: "#ef4f5a" }
+];
+// l = nivel (0-3), t = título, e = emojis, h = pista
+const MOVIES = [
+  { l:0, t:"Titanic",             e:"🎻🌊🥶🚪",     h:"1997 · Drama romántico" },
+  { l:0, t:"El Rey León",         e:"👑🐒🐗🎶",     h:"1994 · Animación de Disney" },
+  { l:0, t:"Coco",                e:"🎸💀🌼📸",     h:"2017 · Animación de Pixar" },
+  { l:0, t:"Barbie",              e:"🎀🧔‍♂️🏖️👠",    h:"2023 · Comedia, de Greta Gerwig" },
+  { l:0, t:"Aladdín",             e:"🪔🧞🐒🕌",     h:"1992 · Animación de Disney" },
+
+  { l:1, t:"Toy Story",           e:"🥔🐷🦖🤠",     h:"1995 · Animación de Pixar" },
+  { l:1, t:"Parque Jurásico",     e:"🦟🧬🥚🏝️",    h:"1993 · Aventuras, de Spielberg" },
+  { l:1, t:"Shrek",               e:"🧅🫏👸🐉",     h:"2001 · Animación de DreamWorks" },
+  { l:1, t:"Monstruos S.A.",      e:"👁️🟢👧🚪😱",   h:"2001 · Animación de Pixar" },
+  { l:1, t:"Solo en casa",        e:"✈️😱🎄🪤🦹",   h:"1990 · Comedia navideña" },
+
+  { l:2, t:"Regreso al futuro",   e:"🛹🔌🕰️⚡👨‍🔬",  h:"1985 · Ciencia ficción" },
+  { l:2, t:"Joker",               e:"🤡🪜💃🚇",     h:"2019 · Drama con Joaquin Phoenix" },
+  { l:2, t:"Top Gun: Maverick",   e:"🏍️🕶️🛩️🏐",    h:"2022 · Acción con Tom Cruise" },
+  { l:2, t:"Dune",                e:"🏜️🪱👦🌶️",    h:"2021 · Ciencia ficción, de Villeneuve" },
+  { l:2, t:"El club de la lucha", e:"🧼👊🤫🏢",     h:"1999 · Drama, de David Fincher" },
+
+  { l:3, t:"El Padrino",        e:"🤵🐴🛏️🍊",     h:"1972 · Drama de mafiosos" },
+  { l:3, t:"Pulp Fiction",      e:"💼💉🍔🕺",     h:"1994 · De Tarantino" },
+  { l:3, t:"Origen",            e:"💤🌀🏙️🔄",     h:"2010 · Ciencia ficción, de Nolan" },
+  { l:3, t:"Forrest Gump",      e:"🏃‍♂️🍫🪶🦐",    h:"1994 · Drama con Tom Hanks" },
+  { l:3, t:"El sexto sentido",  e:"👦👻🤫🧑‍⚕️",    h:"1999 · Suspense" }
+];
+const ANSWER_SECONDS = 10;
+const TEAM_COLORS = ["var(--a)", "var(--b)"];
+
+/* ================= UTILIDADES ================= */
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+function rand(n){
+  const a = "abcdefghjkmnpqrstuvwxyz23456789", r = crypto.getRandomValues(new Uint8Array(n));
+  return Array.from(r, x => a[x % a.length]).join("");
+}
+function graphemes(s){
+  try { return Array.from(new Intl.Segmenter("es", { granularity: "grapheme" }).segment(s), x => x.segment); }
+  catch(e){ return [s]; }
+}
+function setConn(el, cls, txt){ el.className = "conn " + cls; el.querySelector("span").textContent = txt; }
+function winnerText(T){ return T[0].pts === T[1].pts ? "¡Empate!" : `¡Gana ${(T[0].pts > T[1].pts ? T[0] : T[1]).name}!`; }
+
+let actx = null;
+function tone(f, d, type = "sine", when = 0, vol = .14){
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime + when, o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d);
+  } catch(e){}
+}
+function sfx(k){
+  if (k === "buzz") tone(520, .4, "square", 0, .12);
+  if (k === "ok"){ tone(660, .18, "triangle"); tone(880, .18, "triangle", .14); tone(1320, .4, "triangle", .28); }
+  if (k === "bad") tone(170, .5, "sawtooth", 0, .12);
+  if (k === "time"){ tone(440, .14, "square", 0, .1); tone(440, .14, "square", .2, .1); }
+}
+
+const P = new URLSearchParams(location.search);
+const ROOM = P.get("room");
+if (!ROOM) host(); else if (P.get("join") === "ctrl") controller(); else teamPhone();
+
+/* ================= PANTALLA ================= */
+function host(){
+  $("host").hidden = false;
+  const saved = store.get("qpe_state", null);
+  let idx = saved && Number.isInteger(saved.idx) ? Math.min(Math.max(saved.idx, 0), MOVIES.length) : 0;
+  let teams = saved && Array.isArray(saved.teams) && saved.teams.length === 2 ? saved.teams
+            : [{ name: "Equipo A", pts: 0 }, { name: "Equipo B", pts: 0 }];
+  let finished = idx >= MOVIES.length;
+  let hint = false, revealed = false, answering = null, locked = [false, false], result = null;
+  let timer = null, tLeft = 0, splashTimer = null, splashUntil = 0, shownIdx = -1;
+  let ctrlKey = store.get("qpe_key", null); if (!ctrlKey){ ctrlKey = rand(10); store.set("qpe_key", ctrlKey); }
+  const conns = new Set();
+
+  const cur = () => MOVIES[idx];
+  const save = () => store.set("qpe_state", { idx, teams });
+  const stake = () => { if (finished || !cur()) return 0; const p = LEVELS[cur().l].pts; return hint ? p / 2 : p; };
+  const phase = () => finished ? "final" : revealed ? "revealed" : answering ? "answering" : "open";
+
+  function pub(full){
+    const m = cur();
+    return {
+      t: "state", idx, total: MOVIES.length, phase: phase(),
+      level: m ? m.l : 3, lvlName: m ? LEVELS[m.l].name : "",
+      emoji: m ? m.e : "", hintOn: hint,
+      hint: m && (hint || revealed || full) ? m.h : "",
+      title: m && (revealed || full) ? m.t : "",
+      stake: stake(), answering: answering ? answering.team : null, tLeft,
+      locked, teams, result
+    };
+  }
+  function broadcast(){
+    for (const c of conns) if (c.open && c.role) { try { c.send(pub(c.role === "ctrl")); } catch(e){} }
+  }
+
+  function startTimer(){
+    stopTimer(); tLeft = ANSWER_SECONDS;
+    timer = setInterval(() => {
+      tLeft--;
+      if (tLeft <= 0){ tLeft = 0; clearInterval(timer); timer = null; sfx("time"); }
+      render(); broadcast();
+    }, 1000);
+  }
+  function stopTimer(){ if (timer) clearInterval(timer); timer = null; tLeft = 0; }
+
+  function go(i){
+    const prevL = cur() ? cur().l : -1;
+    idx = Math.min(Math.max(i, 0), MOVIES.length);
+    finished = idx >= MOVIES.length;
+    hint = false; revealed = false; answering = null; locked = [false, false]; result = null; stopTimer();
+    if (!finished && (cur().l !== prevL || idx === 0)) showSplash();
+  }
+
+  function act(cmd, arg){
+    switch (cmd){
+      case "buzz": {
+        const t = arg;
+        if (!(t === 0 || t === 1) || finished || revealed || answering || locked[t]) return;
+        answering = { team: t }; startTimer(); sfx("buzz"); break;
+      }
+      case "correct": {
+        if (!answering) return;
+        const t = answering.team, s = stake();
+        teams[t].pts += s; result = { id: Date.now(), team: t, delta: s };
+        answering = null; stopTimer(); revealed = true; sfx("ok"); break;
+      }
+      case "wrong": {
+        if (!answering) return;
+        const t = answering.team;
+        locked[t] = true; result = { id: Date.now(), team: t, delta: 0, wrong: true };
+        answering = null; stopTimer(); sfx("bad");
+        if (locked[0] && locked[1]) revealed = true;
+        break;
+      }
+      case "hint":   if (finished || revealed || answering) return; hint = true; break;
+      case "reveal": if (finished || revealed) return; answering = null; stopTimer(); revealed = true; break;
+      case "next":   if (finished) return; go(idx + 1); break;
+      case "prev":   if (idx === 0) return; go(idx - 1); break;
+      case "level":  if (!(arg >= 0 && arg < LEVELS.length)) return; go(MOVIES.findIndex(m => m.l === arg)); break;
+      case "adj": {
+        if (!arg || !(arg.team === 0 || arg.team === 1) || !Number.isFinite(arg.delta) || Math.abs(arg.delta) > 1000) return;
+        teams[arg.team].pts += arg.delta; break;
+      }
+      case "reset":  teams.forEach(t => t.pts = 0); go(0); break;
+      default: return;
+    }
+    save(); render(); broadcast();
+  }
+
+  /* --- Pintar --- */
+  const teamEls = [0, 1].map(i => {
+    const d = document.createElement("div");
+    d.className = "team"; d.style.setProperty("--tc", TEAM_COLORS[i]);
+    d.innerHTML = `<div class="tn"></div><div class="tp h"></div><div class="ts"></div>
+      <div class="row"><button type="button" data-t="${i}" data-d="-100">−100</button><button type="button" data-t="${i}" data-d="100">+100</button></div>`;
+    $("teams").append(d); return d;
+  });
+  $("teams").addEventListener("click", e => {
+    const b = e.target.closest("button[data-d]");
+    if (b) act("adj", { team: +b.dataset.t, delta: +b.dataset.d });
+  });
+
+  function showSplash(){
+    const m = cur(); if (!m) return;
+    const L = LEVELS[m.l];
+    $("splash").style.setProperty("--lc", L.col);
+    $("splashN").textContent = `Nivel ${m.l + 1} de ${LEVELS.length}`;
+    $("splashName").textContent = L.name;
+    $("splashPts").textContent = `${L.pts} puntos por peli`;
+    $("splash").hidden = false;
+    splashUntil = Date.now() + 2200;
+    clearTimeout(splashTimer);
+    splashTimer = setTimeout(() => { $("splash").hidden = true; }, 2200);
+  }
+
+  function renderEmojis(){
+    if (shownIdx === idx) return;
+    shownIdx = idx;
+    const el = $("emojis"); el.innerHTML = "";
+    const m = cur(); if (!m) return;
+    const base = Math.max(0, splashUntil - Date.now()) / 1000;
+    graphemes(m.e).forEach((g, i) => {
+      const s = document.createElement("span");
+      s.textContent = g; s.style.animationDelay = (base + .15 + i * .35) + "s";
+      el.append(s);
+    });
+    el.setAttribute("aria-label", "Emojis de la peli");
+  }
+
+  function render(){
+    const m = cur();
+    $("count").innerHTML = finished ? "Partida terminada" : `Peli <b>${idx + 1}</b> de <b>${MOVIES.length}</b>`;
+    $("dots").innerHTML = LEVELS.map((L, l) => `<span class="g" style="--c:${L.col}">` +
+      MOVIES.map((mm, i) => mm.l !== l ? "" : `<i class="${i < idx ? "done" : (i === idx && !finished ? "now" : "")}"></i>`).join("") +
+      `</span>`).join("");
+
+    renderEmojis();
+    $("lvlTag").hidden = $("stakeTag").hidden = finished;
+    if (m){
+      $("screen").style.setProperty("--lc", LEVELS[m.l].col);
+      $("lvlTag").textContent = `Nivel ${m.l + 1} · ${LEVELS[m.l].name}`;
+      $("stakeTag").textContent = revealed ? "Revelada" : `${stake()} puntos${hint ? " · con pista" : ""}`;
+      $("hintLine").hidden = !(hint || revealed);
+      $("hintLine").textContent = "💡 " + m.h;
+      $("reveal").hidden = !revealed;
+      $("revealT").textContent = m.t;
+      let sub = "";
+      if (revealed && result && !result.wrong){ sub = `+${result.delta} para ${teams[result.team].name}`; $("revealS").style.color = TEAM_COLORS[result.team]; }
+      else if (revealed && locked[0] && locked[1]){ sub = "Ningún equipo la ha acertado"; $("revealS").style.color = "var(--muted)"; }
+      $("revealS").textContent = sub;
+    } else { $("hintLine").hidden = true; $("reveal").hidden = true; }
+
+    $("buzz").hidden = !answering;
+    if (answering){
+      const t = answering.team;
+      $("buzz").style.setProperty("--tc", TEAM_COLORS[t]);
+      $("buzzWho").textContent = teams[t].name;
+      $("clock").textContent = tLeft > 0 ? tLeft : "¡Tiempo!";
+      $("clock").classList.toggle("out", tLeft <= 0);
+    }
+
+    $("final").hidden = !finished;
+    if (finished){
+      $("finalWho").textContent = winnerText(teams);
+      const fs = $("finalScores"); fs.innerHTML = "";
+      teams.forEach((t, i) => {
+        const d = document.createElement("div"); d.style.color = TEAM_COLORS[i];
+        const n = document.createElement("span"); n.textContent = t.name;
+        const b = document.createElement("b"); b.textContent = t.pts;
+        d.append(n, b); fs.append(d);
+      });
+    }
+
+    teams.forEach((t, i) => {
+      const el = teamEls[i], phones = [...conns].filter(c => c.open && c.role === "team" && c.team === i).length;
+      el.querySelector(".tn").textContent = t.name;
+      el.querySelector(".tp").textContent = t.pts;
+      let st = phones ? `● ${phones} ${phones === 1 ? "móvil conectado" : "móviles conectados"}` : "Sin móviles";
+      if (answering && answering.team === i) st = "Respondiendo…";
+      else if (locked[i] && !revealed) st = "Ha fallado esta peli";
+      el.querySelector(".ts").textContent = st;
+      el.classList.toggle("locked", locked[i] && !revealed);
+      el.classList.toggle("turn", !!answering && answering.team === i);
+    });
+
+    const ctrls = [...conns].filter(c => c.open && c.role === "ctrl").length;
+    setConn($("ctrlChip"), ctrls ? "ok" : "", ctrls ? "Controlador conectado" : "Sin controlador");
+
+    const open = !finished && !revealed && !answering;
+    $("hHint").disabled = !open || hint;
+    $("hRev").disabled = finished || revealed;
+    $("hPrev").disabled = idx === 0;
+    $("hNext").disabled = finished;
+    $("hA").disabled = !open || locked[0];
+    $("hB").disabled = !open || locked[1];
+  }
+
+  /* --- Controles del portátil --- */
+  $("hHint").onclick = () => act("hint");
+  $("hRev").onclick = () => act("reveal");
+  $("hPrev").onclick = () => act("prev");
+  $("hNext").onclick = () => act("next");
+  $("hA").onclick = () => act("buzz", 0);
+  $("hB").onclick = () => act("buzz", 1);
+  $("bOk").onclick = () => act("correct");
+  $("bBad").onclick = () => act("wrong");
+  $("again").onclick = () => act("reset");
+  $("resetBtn").onclick = () => { if (confirm("¿Reiniciar la partida? Los marcadores vuelven a cero.")) act("reset"); };
+  $("fs").onclick = () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); };
+
+  [["nameA", 0], ["nameB", 1]].forEach(([id, i]) => {
+    const inp = $(id); inp.value = teams[i].name;
+    inp.addEventListener("input", () => {
+      teams[i].name = inp.value.trim().slice(0, 24) || (i ? "Equipo B" : "Equipo A");
+      save(); render(); broadcast();
+    });
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("input,textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (e.target.closest("button,summary") && (k === "enter" || k === " ")) return;
+    const map = { h: ["hint"], enter: ["reveal"], n: ["next"], arrowright: ["next"], p: ["prev"], arrowleft: ["prev"],
+                  c: ["correct"], x: ["wrong"], "1": ["buzz", 0], "2": ["buzz", 1] };
+    if (k === "f"){ $("fs").click(); return; }
+    if (map[k]){ e.preventDefault(); act(...map[k]); }
+  });
+
+  /* --- Sala para los móviles --- */
+  function onMsg(c, d){
+    if (!d || typeof d !== "object") return;
+    if (d.t === "hello"){
+      if (d.role === "ctrl"){
+        if (d.k !== ctrlKey){ try { c.send({ t: "denied" }); } catch(e){} return; }
+        c.role = "ctrl";
+      } else {
+        c.role = "team"; c.team = (d.team === 0 || d.team === 1) ? d.team : null;
+      }
+      render(); try { c.send(pub(c.role === "ctrl")); } catch(e){}
+      return;
+    }
+    if (d.t === "buzz" && c.role === "team" && c.team != null) act("buzz", c.team);
+    if (d.t === "cmd" && c.role === "ctrl"){
+      const ok = ["correct","wrong","hint","reveal","next","prev","level","adj","reset","buzz"];
+      if (ok.includes(d.cmd)) act(d.cmd, d.arg);
+    }
+  }
+
+  function makeQRs(id){
+    const base = location.origin + location.pathname;
+    const urls = { team: `${base}?room=${id}&join=team`, ctrl: `${base}?room=${id}&join=ctrl&k=${ctrlKey}` };
+    [["qrTeam", urls.team], ["qrCtrl", urls.ctrl]].forEach(([el, url]) => {
+      $(el).innerHTML = "";
+      if (window.QRCode) new QRCode($(el), { text: url, width: 190, height: 190, colorDark: "#130c15", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+      else $(el).textContent = url;
+    });
+    const copy = (btn, url) => () => {
+      (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
+        .then(() => { btn.textContent = "¡Copiado!"; setTimeout(() => btn.textContent = "Copiar enlace", 1500); })
+        .catch(() => prompt("Copia este enlace:", url));
+    };
+    $("copyTeam").onclick = copy($("copyTeam"), urls.team);
+    $("copyCtrl").onclick = copy($("copyCtrl"), urls.ctrl);
+    $("copyTeam").disabled = $("copyCtrl").disabled = $("showCtrl").disabled = false;
+  }
+  $("showCtrl").onclick = () => {
+    const q = $("qrCtrl"); q.hidden = !q.hidden;
+    $("showCtrl").textContent = q.hidden ? "Mostrar QR" : "Ocultar QR";
+  };
+
+  function openRoom(attempt = 0, fresh = false){
+    if (typeof Peer === "undefined"){ setConn($("conn"), "err", "Sin conexión para móviles"); return; }
+    let id = store.get("qpe_room", null);
+    if (!id || fresh){ id = "qpe-" + rand(10); store.set("qpe_room", id); }
+    setConn($("conn"), "", "Abriendo sala…");
+    const p = new Peer(id, { debug: 0 });
+    p.on("open", () => { setConn($("conn"), "ok", "Sala abierta"); makeQRs(id); });
+    p.on("connection", c => {
+      conns.add(c);
+      c.on("data", d => onMsg(c, d));
+      const drop = () => { conns.delete(c); render(); };
+      c.on("close", drop); c.on("error", drop);
+    });
+    p.on("disconnected", () => {
+      if (p.destroyed) return;
+      setConn($("conn"), "err", "Reconectando…");
+      setTimeout(() => { try { if (!p.destroyed) p.reconnect(); } catch(e){} }, 1500);
+    });
+    p.on("error", e => {
+      if (e.type === "unavailable-id"){
+        p.destroy();
+        if (attempt < 3) setTimeout(() => openRoom(attempt + 1), 3000); else openRoom(0, true);
+      } else if (e.type === "peer-unavailable"){ /* ignorar */ }
+      else if (["network", "server-error", "socket-error", "socket-closed"].includes(e.type)){
+        setConn($("conn"), "err", "Sin servidor. Reintentando…");
+        setTimeout(() => { try { if (!p.destroyed && p.disconnected) p.reconnect(); } catch(_){} }, 3000);
+      } else setConn($("conn"), "err", "Error de conexión");
+    });
+  }
+
+  if (location.protocol === "file:"){ $("fileWarn").hidden = false; setConn($("conn"), "err", "Sin conexión para móviles"); }
+  else openRoom();
+
+  showSplash(); render();
+}
+
+/* ================= CONEXIÓN DE LOS MÓVILES ================= */
+function client(hello, onState, statusEl){
+  let peer = null, conn = null, retry = null;
+  function start(){
+    if (typeof Peer === "undefined"){ setConn(statusEl, "err", "No se pudo cargar la conexión"); return; }
+    setConn(statusEl, "", "Conectando…");
+    peer = new Peer({ debug: 0 });
+    peer.on("open", connect);
+    peer.on("error", e => {
+      setConn(statusEl, "err", e.type === "peer-unavailable" ? "No encuentro la pantalla" : "Problema de conexión");
+      schedule();
+    });
+    peer.on("disconnected", () => { try { if (!peer.destroyed) peer.reconnect(); } catch(e){} });
+  }
+  function connect(){
+    if (conn) try { conn.close(); } catch(e){}
+    const c = conn = peer.connect(ROOM, { reliable: true });
+    c.on("open", () => { setConn(statusEl, "ok", "Conectado"); c.send(hello()); });
+    c.on("data", d => {
+      if (d && d.t === "state") onState(d);
+      else if (d && d.t === "denied") setConn(statusEl, "err", "Enlace no válido");
+    });
+    c.on("close", () => { if (c !== conn) return; setConn(statusEl, "err", "Reconectando…"); schedule(); });
+    c.on("error", () => { if (c === conn) schedule(); });
+  }
+  function schedule(){
+    clearTimeout(retry);
+    retry = setTimeout(() => {
+      if (!peer || peer.destroyed){ start(); return; }
+      if (peer.disconnected){ try { peer.reconnect(); } catch(e){} setTimeout(connect, 1200); }
+      else connect();
+    }, 2500);
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && (!conn || !conn.open)) schedule();
+  });
+  start();
+  return {
+    send(m){ if (conn && conn.open) try { conn.send(m); } catch(e){} },
+    rehello(){ if (conn && conn.open) try { conn.send(hello()); } catch(e){} }
+  };
+}
+
+/* ================= CONTROLADOR ================= */
+function controller(){
+  $("ctrl").hidden = false;
+  const key = P.get("k") || "";
+  let last = null, prevAnswering = null;
+  const cl = client(() => ({ t: "hello", role: "ctrl", k: key }), render, $("cConn"));
+
+  $("cLevels").innerHTML = LEVELS.map((L, l) =>
+    `<button type="button" data-cmd="level" data-arg="${l}" style="--lc:${L.col}">${l + 1} · ${L.name}</button>`).join("");
+
+  const rows = [0, 1].map(i => {
+    const d = document.createElement("div");
+    d.className = "cteam"; d.style.setProperty("--tc", TEAM_COLORS[i]);
+    d.innerHTML = `<span class="n"></span><span class="p"></span>
+      <button type="button" data-t="${i}" data-d="-100">−100</button><button type="button" data-t="${i}" data-d="100">+100</button>`;
+    $("cTeams").append(d); return d;
+  });
+
+  $("ctrl").addEventListener("click", e => {
+    const adj = e.target.closest("button[data-d]");
+    if (adj){ cl.send({ t: "cmd", cmd: "adj", arg: { team: +adj.dataset.t, delta: +adj.dataset.d } }); return; }
+    const b = e.target.closest("button[data-cmd]");
+    if (b && !b.disabled) cl.send({ t: "cmd", cmd: b.dataset.cmd, arg: b.dataset.arg != null ? +b.dataset.arg : undefined });
+  });
+  $("cReset").onclick = () => { if (confirm("¿Reiniciar la partida? Los marcadores vuelven a cero.")) cl.send({ t: "cmd", cmd: "reset" }); };
+
+  function render(s){
+    last = s;
+    const fin = s.phase === "final", L = LEVELS[s.level];
+    $("cLvl").style.setProperty("--lc", fin ? "var(--line)" : L.col);
+    $("cLvl").textContent = fin ? "Final" : `Nivel ${s.level + 1} · ${L.name}`;
+    $("cCount").textContent = fin ? "Partida terminada" : `Peli ${s.idx + 1} de ${s.total}`;
+    $("cTitle").textContent = fin ? winnerText(s.teams) : s.title;
+    $("cEmo").textContent = fin ? "🏁" : s.emoji;
+    $("cHint").textContent = fin ? "" : `💡 ${s.hint} · ${s.hintOn ? "pista ya mostrada" : "pista aún sin mostrar"}`;
+    $("cStake").textContent = s.stake;
+
+    const ans = s.phase === "answering";
+    $("cTurn").hidden = !ans;
+    if (ans){
+      $("cTurn").style.setProperty("--tc", TEAM_COLORS[s.answering]);
+      $("cWho").textContent = s.teams[s.answering].name;
+      $("cClock").textContent = s.tLeft > 0 ? `Le quedan ${s.tLeft} s` : "¡Se acabó el tiempo!";
+      if (prevAnswering !== s.answering) navigator.vibrate?.(120);
+    }
+    prevAnswering = ans ? s.answering : null;
+
+    const open = s.phase === "open";
+    $("cHintBtn").disabled = !open || s.hintOn;
+    $("cRevBtn").disabled = fin || s.phase === "revealed";
+    $("cPrev").disabled = s.idx === 0;
+    $("cNext").disabled = fin;
+    $("cbA").disabled = !open || s.locked[0];
+    $("cbB").disabled = !open || s.locked[1];
+    $("cbA").textContent = "Pulsa " + s.teams[0].name;
+    $("cbB").textContent = "Pulsa " + s.teams[1].name;
+    s.teams.forEach((t, i) => {
+      rows[i].querySelector(".n").textContent = t.name;
+      rows[i].querySelector(".p").textContent = t.pts;
+    });
+  }
+}
+
+/* ================= MÓVIL DE EQUIPO ================= */
+function teamPhone(){
+  $("team").hidden = false;
+  const KEY = "qpe_t_" + ROOM;
+  let myTeam = store.get(KEY, null);
+  if (!(myTeam === 0 || myTeam === 1)) myTeam = null;
+  let last = null, lastRes = undefined, prevAns = null;
+  const cl = client(() => ({ t: "hello", role: "team", team: myTeam }), s => {
+    if (lastRes === undefined) lastRes = s.result ? s.result.id : null;
+    else if (s.result && s.result.id !== lastRes){
+      lastRes = s.result.id;
+      if (s.result.team === myTeam) flash(s.result.wrong ? "✗" : "+" + s.result.delta, !s.result.wrong);
+    }
+    if (s.phase === "answering" && s.answering === myTeam && prevAns !== myTeam) navigator.vibrate?.([80, 40, 80]);
+    prevAns = s.phase === "answering" ? s.answering : null;
+    last = s; render();
+  }, $("tConn"));
+
+  document.querySelectorAll("#choose .pick").forEach(b => b.onclick = () => {
+    myTeam = +b.dataset.team; store.set(KEY, myTeam); cl.rehello(); render();
+  });
+  $("switch").onclick = () => { myTeam = null; store.set(KEY, null); cl.rehello(); render(); };
+
+  const bz = $("buzzer");
+  const press = () => {
+    if (bz.disabled || myTeam == null) return;
+    cl.send({ t: "buzz" }); navigator.vibrate?.(40);
+    bz.disabled = true;
+  };
+  bz.addEventListener("pointerdown", e => { e.preventDefault(); press(); });
+  bz.addEventListener("click", e => { if (e.detail === 0) press(); });
+
+  function flash(txt, good){
+    const f = $("flash"); f.textContent = txt; f.className = "flash h " + (good ? "good" : "bad"); f.hidden = false;
+    navigator.vibrate?.(good ? [60, 40, 60] : 220);
+    setTimeout(() => { f.hidden = true; }, 1400);
+  }
+
+  function render(){
+    const choosing = myTeam == null;
+    $("choose").hidden = !choosing; $("play").hidden = choosing;
+    if (last){ $("pickA").textContent = last.teams[0].name; $("pickB").textContent = last.teams[1].name; }
+    if (choosing) return;
+    document.documentElement.style.setProperty("--tc", TEAM_COLORS[myTeam]);
+    if (!last) return;
+    const s = last, T = s.teams, me = myTeam, other = 1 - me;
+    $("tName").textContent = T[me].name;
+    $("tPts").textContent = T[me].pts;
+    $("tEmo").textContent = s.phase === "final" ? "🏁" : s.emoji;
+    $("tHint").textContent = s.hint && s.phase !== "final" ? "💡 " + s.hint : "";
+
+    let txt, can = false, mine = false;
+    if (s.phase === "final") txt = winnerText(T);
+    else if (s.phase === "revealed") txt = "Era: " + s.title;
+    else if (s.phase === "answering"){
+      if (s.answering === me){ mine = true; txt = "¡Os toca! Decid la peli" + (s.tLeft > 0 ? ` · ${s.tLeft} s` : ""); }
+      else txt = `Responde ${T[s.answering].name}…`;
+    }
+    else if (s.locked[me]) txt = `Habéis fallado esta. Ahora puede rebotar ${T[other].name}.`;
+    else { can = true; txt = `${s.stake} puntos en juego` + (s.hintOn ? " (con pista)" : ""); }
+
+    bz.disabled = !can;
+    bz.classList.toggle("mine", mine);
+    bz.textContent = mine ? "¡Os toca!" : "¡Lo sé!";
+    $("tStatus").textContent = txt;
+
+    const mini = $("tMini"); mini.innerHTML = "";
+    T.forEach((t, i) => {
+      const d = document.createElement("div"); d.style.setProperty("--tc", TEAM_COLORS[i]);
+      const n = document.createElement("span"); n.textContent = t.name;
+      const p = document.createElement("span"); p.textContent = t.pts;
+      d.append(n, p); mini.append(d);
+    });
+  }
+  render();
+}
+</script>
+</body>
+</html>
